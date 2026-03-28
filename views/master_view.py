@@ -41,7 +41,6 @@ def show_master_view(page, dm, master, from_senior=False):
     # === ОТПРАВКА ЗАЯВКИ ===
     def send_all_requests(obj, oxygen_input, propane_input, oxygen_text, propane_text):
         try:
-            # Читаем значения из полей (с защитой от пустых)
             o_new = int(oxygen_input.value) if oxygen_input.value and oxygen_input.value.strip() else 0
             p_new = int(propane_input.value) if propane_input.value and propane_input.value.strip() else 0
             
@@ -88,7 +87,7 @@ def show_master_view(page, dm, master, from_senior=False):
                 threading.Thread(target=reset, daemon=True).start()
                 return
             
-            # ВОЗВРАЩАЕМ старые значения в остаток (восстанавливаем до "полного")
+            # ВОЗВРАЩАЕМ старые значения в остаток
             obj["oxygen"] = available_oxygen
             obj["propane"] = available_propane
             
@@ -119,7 +118,6 @@ def show_master_view(page, dm, master, from_senior=False):
             dm.save_data()
             page.update()
             
-            # Убираем подсветку через 2 секунды
             def reset():
                 time.sleep(2)
                 oxygen_input.bgcolor = colors["surface"]
@@ -179,23 +177,20 @@ def show_master_view(page, dm, master, from_senior=False):
     
     # === КАРТОЧКА ОБЪЕКТА ===
     def create_object_card(obj):
-        # Для старшего мастера показываем ВСЕ заявки объекта
-        if from_senior or master.get("is_senior", False):
-            active_requests = [r for r in dm.data["requests"] 
-                              if r["object_id"] == obj["id"] and r["status"] == "active"]
-        else:
-            active_requests = dm.get_master_requests(master["name"])
+        # ✅ ПОКАЗЫВАЕМ ВСЕ активные заявки ЭТОГО ОБЪЕКТА (не фильтруем по мастеру)
+        # Чтобы мастер видел заявку старшего
+        active_requests = [r for r in dm.data["requests"] 
+                          if r["object_id"] == obj["id"] and r["status"] == "active"]
         
-        # Находим заявки для этого конкретного объекта
+        # Берём ПЕРВУЮ заявку каждого типа (не суммируем!)
         oxygen_req = 0
         propane_req = 0
         
         for req in active_requests:
-            if req["object_id"] == obj["id"]:
-                if req["gas_type"] == "КИСЛОРОД":
-                    oxygen_req = req["quantity"]
-                elif req["gas_type"] == "ПРОПАН":
-                    propane_req = req["quantity"]
+            if req["gas_type"] == "КИСЛОРОД" and oxygen_req == 0:  # ✅ Берём первую, не суммируем
+                oxygen_req = req["quantity"]
+            elif req["gas_type"] == "ПРОПАН" and propane_req == 0:  # ✅ Берём первую, не суммируем
+                propane_req = req["quantity"]
         
         # Текст для отображения физического остатка
         oxygen_text = ft.Text(str(obj["oxygen"]), size=12, color=colors["oxygen"], weight="bold")
@@ -271,10 +266,11 @@ def show_master_view(page, dm, master, from_senior=False):
                 # Название объекта и физический остаток
                 ft.Row([
                     ft.Text(obj["name"], size=16, weight=ft.FontWeight.BOLD, color=colors["text"], expand=True),
+                    # ✅ Убрал "Факт:" — только цифры
                     ft.Container(
                         content=ft.Row([
-                            ft.Text("Факт:", size=10, color=colors["text_secondary"]),
                             oxygen_text,
+                            ft.Text(" | ", size=10, color=colors["text_secondary"]),
                             propane_text,
                         ], spacing=4),
                         padding=4,
@@ -335,7 +331,6 @@ def show_master_view(page, dm, master, from_senior=False):
             # Хедер
             ft.Container(
                 content=ft.Row([
-                    # Кнопка НАЗАД если зашел через старшего
                     ft.IconButton(
                         icon=ft.icons.ARROW_BACK,
                         icon_color=colors["text_secondary"],
