@@ -345,11 +345,7 @@ def show_master_view(page, dm, master, from_senior=False):
                     
                     ft.Text("НГДУ «Нижнесортымскнефть»", size=16, weight=ft.FontWeight.BOLD, color=colors["primary"], expand=True, text_align=ft.TextAlign.CENTER),
                     
-                    ft.TextButton(  # ✅ ИСПРАВЛЕНО: LOGOUT → TextButton
-                        "Выход",
-                        color=colors["text_secondary"], 
-                        on_click=go_home
-                    )
+                    ft.IconButton(icon=ft.icons.LOGOUT, icon_color=colors["text_secondary"], tooltip="Выход", on_click=go_home)
                 ]),
                 padding=15,
                 bgcolor=colors["surface"],

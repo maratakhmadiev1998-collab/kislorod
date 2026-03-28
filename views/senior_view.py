@@ -63,11 +63,7 @@ def show_senior_menu(page, dm, senior):
             ft.Container(
                 content=ft.Row([
                     ft.Text("НГДУ «Нижнесортымскнефть»", size=18, weight=ft.FontWeight.W_600, color=colors["text"], expand=True),
-                    ft.TextButton(  # ✅ ИСПРАВЛЕНО: LOGOUT → TextButton
-                        "← Выход",
-                        color=colors["text_secondary"],
-                        on_click=go_back
-                    )
+                    ft.IconButton(icon=ft.icons.LOGOUT, icon_color=colors["text_secondary"], tooltip="Выйти из системы", on_click=go_back)
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 padding=20,
                 bgcolor=colors["surface"],

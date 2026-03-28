@@ -55,7 +55,7 @@ def show_chief_menu(page: ft.Page, dm, chief):
             content=ft.Row([
                 ft.IconButton(ft.icons.ARROW_BACK, on_click=go_back, icon_color="grey"),
                 ft.Text("НГДУ «Нижнесортымскнефть»", weight=ft.FontWeight.BOLD, size=18, expand=True, text_align=ft.TextAlign.CENTER),
-                ft.TextButton("Выход", color="grey", on_click=lambda e: page.go("/"))
+                ft.IconButton(icon=ft.icons.LOGOUT, icon_color="grey", tooltip="Выйти", on_click=lambda e: page.go("/"))
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             padding=ft.padding.symmetric(horizontal=16, vertical=12),
             bgcolor=C["surface"],
