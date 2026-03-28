@@ -28,7 +28,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         show_login(page, dm)
     
     # === ЗАПЛАНИРОВАТЬ ===
-    def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field, complete_btn):
+    def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field):
         try:
             o_new = int(oxygen_input.value) if oxygen_input.value else 0
             p_new = int(propane_input.value) if propane_input.value else 0
@@ -71,10 +71,6 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             oxygen_input.bgcolor = colors["success_light"]
             propane_input.bgcolor = colors["success_light"]
             
-            # Активируем кнопку "Выполнить"
-            complete_btn.disabled = False
-            complete_btn.opacity = 1
-            
             page.update()
             
             # Убираем подсветку через 2 сек
@@ -90,7 +86,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             print(f"Ошибка планирования: {ex}")
     
     # === ВЫПОЛНИТЬ ===
-    def complete_delivery(e, obj_id, complete_btn):
+    def complete_delivery(e, obj_id):
         try:
             object_deliveries = [d for d in dm.get_planned_deliveries() if d["object_id"] == obj_id]
             if not object_deliveries:
@@ -123,11 +119,8 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             
             dm.save_data()
             
-            # Деактивируем кнопку "Выполнить"
-            complete_btn.disabled = True
-            complete_btn.opacity = 0.5
-            
-            page.update()
+            # Перезагружаем экран чтобы обновить состояние кнопок
+            show_supplier_view(page, dm, supplier, from_senior)
             
         except Exception as ex:
             print(f"Ошибка выполнения: {ex}")
@@ -155,7 +148,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             plan_p = propane_req
             plan_date = datetime.now().strftime("%d.%m.%Y")
         
-        # Поля ввода (ВСЕГДА редактируемые, без блокировок!)
+        # Поля ввода
         oxygen_input = ft.TextField(
             value=str(plan_o),
             width=100,
@@ -180,7 +173,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             content_padding=10,
         )
         
-        # Поле даты (сегодня по умолчанию)
+        # Поле даты
         date_field = ft.TextField(
             value=plan_date,
             width=140,
@@ -192,11 +185,11 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             content_padding=10,
         )
         
-        # Кнопки (ВСЕГДА активны, без блокировок!)
+        # ✅ Кнопки БЕЗ передачи ссылок друг на друга
         plan_btn = ft.ElevatedButton(
             "ЗАПЛАНИРОВАТЬ",
-            on_click=lambda e, oid=obj["id"], oi=oxygen_input, pi=propane_input, df=date_field, cb=complete_btn: 
-                plan_delivery(e, oid, oi, pi, df, cb),
+            on_click=lambda e, oid=obj["id"], oi=oxygen_input, pi=propane_input, df=date_field: 
+                plan_delivery(e, oid, oi, pi, df),
             width=350,
             height=45,
             style=ft.ButtonStyle(
@@ -208,8 +201,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         
         complete_btn = ft.ElevatedButton(
             "ВЫПОЛНИТЬ",
-            on_click=lambda e, oid=obj["id"], cb=complete_btn: 
-                complete_delivery(e, oid, cb),
+            on_click=lambda e, oid=obj["id"]: complete_delivery(e, oid),
             width=350,
             height=45,
             style=ft.ButtonStyle(
