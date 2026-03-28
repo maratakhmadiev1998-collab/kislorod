@@ -439,8 +439,11 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                         ft.Row([
                             ft.IconButton(icon=ft.icons.REFRESH, icon_size=20, icon_color=colors["text_secondary"],
                                         tooltip="Обновить", on_click=lambda e: on_refresh()),
-                            ft.IconButton(icon=ft.icons.LOGOUT, icon_size=20, icon_color=colors["text_secondary"],
-                                        tooltip="Выйти", on_click=lambda e: show_login(page, dm))
+                            ft.TextButton(  # ✅ ИСПРАВЛЕНО: LOGOUT → TextButton
+                                "Выход",
+                                color=colors["text_secondary"],
+                                on_click=lambda e: show_login(page, dm)
+                            )
                         ], spacing=0)
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
                 ]),

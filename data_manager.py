@@ -1,8 +1,7 @@
 import json
 import os
 from datetime import datetime
-from config_data import OBJECTS, USERS
-from stock_data import CURRENT_STOCK
+from config_data import OBJECTS, USERS, CURRENT_STOCK
 
 class DataManager:
     DATA_FILE = "gas_data.json"
