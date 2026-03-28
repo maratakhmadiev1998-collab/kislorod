@@ -27,11 +27,8 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         from login_screen import show_login
         show_login(page, dm)
     
-    def on_refresh():
-        show_supplier_view(page, dm, supplier, from_senior)
-    
     # === ЗАПЛАНИРОВАТЬ ===
-    def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field, plan_btn, complete_btn):
+    def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field):
         try:
             o_new = int(oxygen_input.value) if oxygen_input.value else 0
             p_new = int(propane_input.value) if propane_input.value else 0
@@ -70,10 +67,6 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             oxygen_input.bgcolor = colors["success_light"]
             propane_input.bgcolor = colors["success_light"]
             
-            # Активируем кнопку "Выполнить"
-            complete_btn.disabled = False
-            complete_btn.opacity = 1
-            
             page.update()
             
             # Убираем подсветку через 2 сек
@@ -85,11 +78,15 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             
             threading.Thread(target=reset, daemon=True).start()
             
+            # Перезагружаем экран чтобы активировать кнопку "Выполнить"
+            time.sleep(0.5)
+            show_supplier_view(page, dm, supplier, from_senior)
+            
         except Exception as ex:
             print(f"Ошибка планирования: {ex}")
     
     # === ВЫПОЛНИТЬ ===
-    def complete_delivery(e, obj_id, plan_btn, complete_btn):
+    def complete_delivery(e, obj_id):
         try:
             object_deliveries = [d for d in dm.get_planned_deliveries() if d["object_id"] == obj_id]
             if not object_deliveries:
@@ -122,13 +119,8 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             
             dm.save_data()
             
-            # Деактивируем кнопки
-            plan_btn.disabled = True
-            plan_btn.opacity = 0.5
-            complete_btn.disabled = True
-            complete_btn.opacity = 0.5
-            
-            page.update()
+            # Перезагружаем экран
+            show_supplier_view(page, dm, supplier, from_senior)
             
         except Exception as ex:
             print(f"Ошибка выполнения: {ex}")
@@ -183,11 +175,11 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             content_padding=10,
         )
         
-        # Кнопки
+        # Кнопки (без передачи ссылок в lambda)
         plan_btn = ft.ElevatedButton(
             "ЗАПЛАНИРОВАТЬ",
-            on_click=lambda e, oid=obj["id"], oi=oxygen_input, pi=propane_input, df=date_field, pb=plan_btn, cb=complete_btn: 
-                plan_delivery(e, oid, oi, pi, df, pb, cb),
+            on_click=lambda e, oid=obj["id"], oi=oxygen_input, pi=propane_input, df=date_field: 
+                plan_delivery(e, oid, oi, pi, df),
             width=350,
             height=45,
             style=ft.ButtonStyle(
@@ -199,8 +191,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         
         complete_btn = ft.ElevatedButton(
             "ВЫПОЛНИТЬ",
-            on_click=lambda e, oid=obj["id"], pb=plan_btn, cb=complete_btn: 
-                complete_delivery(e, oid, pb, cb),
+            on_click=lambda e, oid=obj["id"]: complete_delivery(e, oid),
             width=350,
             height=45,
             style=ft.ButtonStyle(
@@ -212,7 +203,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             opacity=1 if has_plan else 0.5
         )
         
-        # ✅ Карточка как у мастера (широкая, с цветным фоном полей)
+        # Карточка как у мастера (широкая, с цветным фоном полей)
         return ft.Container(
             content=ft.Column([
                 # Название объекта и остаток
