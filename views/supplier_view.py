@@ -1,9 +1,11 @@
 # views/supplier_view.py
 import flet as ft
 from colors_apple import colors
-from datetime import datetime, timedelta
+from datetime import datetime
 import sys
 import os
+import threading
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -11,12 +13,7 @@ from login_screen import show_login
 
 
 def show_supplier_view(page, dm, supplier, from_senior=False):
-    """Экран Снабженца: Заявки → Поставки (упрощённый)"""
-    if page.dialog:
-        page.dialog.open = False
-        page.dialog = None
-        page.update()
-    
+    """Экран Снабженца: упрощённый (без вкладок)"""
     page.clean()
     objects = dm.get_all_objects()
     
@@ -33,24 +30,8 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
     def on_refresh():
         show_supplier_view(page, dm, supplier, from_senior)
     
-    # === ДАТА ПИКЕР ===
-    def pick_date(e, date_field):
-        def date_changed(e):
-            if date_picker.value:
-                date_field.value = date_picker.value.strftime("%d.%m.%Y")
-                page.update()
-        
-        date_picker = ft.DatePicker(
-            on_change=date_changed,
-            first_date=datetime.now() - timedelta(days=0),
-            last_date=datetime.now() + timedelta(days=365),
-        )
-        page.overlay.append(date_picker)
-        date_picker.open = True
-        page.update()
-    
     # === ЗАПЛАНИРОВАТЬ ===
-    def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field, plan_btn, complete_btn, status_text):
+    def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field, plan_btn, complete_btn):
         try:
             o_new = int(oxygen_input.value) if oxygen_input.value else 0
             p_new = int(propane_input.value) if propane_input.value else 0
@@ -93,28 +74,22 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             complete_btn.disabled = False
             complete_btn.opacity = 1
             
-            # Статус
-            status_text.value = "🟡 Запланировано"
-            status_text.color = colors["warning"]
-            
             page.update()
             
-            # Убираем подсветку
+            # Убираем подсветку через 2 сек
             def reset():
-                import time
                 time.sleep(2)
                 oxygen_input.bgcolor = colors["surface"]
                 propane_input.bgcolor = colors["surface"]
                 page.update()
             
-            import threading
             threading.Thread(target=reset, daemon=True).start()
             
         except Exception as ex:
             print(f"Ошибка планирования: {ex}")
     
     # === ВЫПОЛНИТЬ ===
-    def complete_delivery(e, obj_id, plan_btn, complete_btn, status_text):
+    def complete_delivery(e, obj_id, plan_btn, complete_btn):
         try:
             object_deliveries = [d for d in dm.get_planned_deliveries() if d["object_id"] == obj_id]
             if not object_deliveries:
@@ -147,10 +122,6 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             
             dm.save_data()
             
-            # Статус
-            status_text.value = "🟢 Выполнено"
-            status_text.color = colors["success"]
-            
             # Деактивируем кнопки
             plan_btn.disabled = True
             plan_btn.opacity = 0.5
@@ -164,7 +135,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
     
     # === КАРТОЧКА ОБЪЕКТА ===
     def create_object_card(obj):
-        requests = dm.get_active_requests(obj_id=obj["id"])
+        requests = dm.get_active_requests(obj["id"])
         oxygen_req = next((r["quantity"] for r in requests if r["gas_type"] == "КИСЛОРОД"), 0)
         propane_req = next((r["quantity"] for r in requests if r["gas_type"] == "ПРОПАН"), 0)
         
@@ -174,22 +145,6 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         # Проверяем есть ли план
         obj_deliveries = [d for d in dm.get_planned_deliveries() if d["object_id"] == obj["id"]]
         has_plan = len(obj_deliveries) > 0
-        
-        # Проверяем есть ли выполненные
-        completed = [d for d in dm.data.get("deliveries", []) 
-                    if d.get("object_id") == obj["id"] and d.get("completed") == True]
-        is_completed = len(completed) > 0
-        
-        # Статус
-        if is_completed:
-            status_text = "🟢 Выполнено"
-            status_color = colors["success"]
-        elif has_plan:
-            status_text = "🟡 Запланировано"
-            status_color = colors["warning"]
-        else:
-            status_text = "⚪ Не запланировано"
-            status_color = colors["text_secondary"]
         
         # Поля ввода
         oxygen_input = ft.TextField(
@@ -228,31 +183,24 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             content_padding=10,
         )
         
-        # Кнопка календаря
-        calendar_btn = ft.IconButton(
-            icon=ft.icons.CALENDAR_MONTH,
-            icon_color=colors["primary"],
-            tooltip="Выбрать дату",
-            on_click=lambda e: pick_date(e, date_field)
-        )
-        
         # Кнопки
         plan_btn = ft.ElevatedButton(
             "ЗАПЛАНИРОВАТЬ",
-            on_click=lambda e: plan_delivery(e, obj["id"], oxygen_input, propane_input, date_field, plan_btn, complete_btn, status_text),
+            on_click=lambda e, oid=obj["id"], oi=oxygen_input, pi=propane_input, df=date_field, pb=plan_btn, cb=complete_btn: 
+                plan_delivery(e, oid, oi, pi, df, pb, cb),
             width=350,
             height=45,
             style=ft.ButtonStyle(
                 color="white",
                 bgcolor=colors["primary"],
                 shape=ft.RoundedRectangleBorder(radius=6)
-            ),
-            disabled=is_completed
+            )
         )
         
         complete_btn = ft.ElevatedButton(
             "ВЫПОЛНИТЬ",
-            on_click=lambda e: complete_delivery(e, obj["id"], plan_btn, complete_btn, status_text),
+            on_click=lambda e, oid=obj["id"], pb=plan_btn, cb=complete_btn: 
+                complete_delivery(e, oid, pb, cb),
             width=350,
             height=45,
             style=ft.ButtonStyle(
@@ -260,14 +208,11 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                 bgcolor=colors["success"],
                 shape=ft.RoundedRectangleBorder(radius=6)
             ),
-            disabled=not has_plan or is_completed,
-            opacity=1 if has_plan and not is_completed else 0.5
+            disabled=not has_plan,
+            opacity=1 if has_plan else 0.5
         )
         
-        # Текст статуса
-        status_control = ft.Text(status_text, size=12, color=status_color, weight=ft.FontWeight.W_600)
-        
-        # ✅ ИСПРАВЛЕНИЕ: Карточка как у мастера (широкая, с цветным фоном полей)
+        # ✅ Карточка как у мастера (широкая, с цветным фоном полей)
         return ft.Container(
             content=ft.Column([
                 # Название объекта и остаток
@@ -293,10 +238,10 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                         content=ft.Column([
                             ft.Text("КИСЛОРОД", size=14, weight=ft.FontWeight.W_600, color=colors["oxygen"]),
                             oxygen_input,
-                            ft.Text(f"макс: {oxygen_req}", size=10, color=colors["text_secondary"]),  # ✅ Макс снизу
+                            ft.Text(f"макс: {oxygen_req}", size=10, color=colors["text_secondary"]),
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
                         padding=12,
-                        bgcolor=colors["oxygen_light"],  # ✅ Цветной фон
+                        bgcolor=colors["oxygen_light"],
                         border_radius=8,
                         expand=True
                     ),
@@ -304,10 +249,10 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                         content=ft.Column([
                             ft.Text("ПРОПАН", size=14, weight=ft.FontWeight.W_600, color=colors["propane"]),
                             propane_input,
-                            ft.Text(f"макс: {propane_req}", size=10, color=colors["text_secondary"]),  # ✅ Макс снизу
+                            ft.Text(f"макс: {propane_req}", size=10, color=colors["text_secondary"]),
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
                         padding=12,
-                        bgcolor=colors["propane_light"],  # ✅ Цветной фон
+                        bgcolor=colors["propane_light"],
                         border_radius=8,
                         expand=True
                     ),
@@ -315,19 +260,13 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                 
                 ft.Container(height=15),
                 
-                # Дата
+                # Дата (просто поле, без календаря)
                 ft.Row([
                     ft.Text("📅", size=16),
                     date_field,
-                    calendar_btn,  # ✅ Кнопка календаря
                 ], alignment=ft.MainAxisAlignment.CENTER),
                 
-                ft.Container(height=10),
-                
-                # Статус
-                status_control,
-                
-                ft.Container(height=10),
+                ft.Container(height=15),
                 
                 # Кнопки
                 plan_btn,
@@ -340,7 +279,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             bgcolor=colors["surface"],
             border_radius=10,
             shadow=ft.BoxShadow(blur_radius=4, color="#D0D0D0"),
-            width=page.width * 0.95 if page.width else 400,  # ✅ Широкая карточка
+            width=page.width * 0.95 if page.width else 400,
         )
     
     # Собираем карточки
