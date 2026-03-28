@@ -1,7 +1,7 @@
 # views/supplier_view.py
 import flet as ft
 from colors_apple import colors
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys
 import os
 import threading
@@ -28,15 +28,19 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         show_login(page, dm)
     
     # === ЗАПЛАНИРОВАТЬ ===
-    def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field):
+    def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field, complete_btn):
         try:
             o_new = int(oxygen_input.value) if oxygen_input.value else 0
             p_new = int(propane_input.value) if propane_input.value else 0
             new_date = date_field.value
             
-            # Валидация даты
+            # Валидация даты (не раньше сегодня)
             try:
-                datetime.strptime(new_date, "%d.%m.%Y")
+                date_obj = datetime.strptime(new_date, "%d.%m.%Y")
+                if date_obj.date() < datetime.now().date():
+                    date_field.bgcolor = colors["danger_light"]
+                    page.update()
+                    return
             except:
                 date_field.bgcolor = colors["danger_light"]
                 page.update()
@@ -67,6 +71,10 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             oxygen_input.bgcolor = colors["success_light"]
             propane_input.bgcolor = colors["success_light"]
             
+            # Активируем кнопку "Выполнить"
+            complete_btn.disabled = False
+            complete_btn.opacity = 1
+            
             page.update()
             
             # Убираем подсветку через 2 сек
@@ -78,15 +86,11 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             
             threading.Thread(target=reset, daemon=True).start()
             
-            # Перезагружаем экран чтобы активировать кнопку "Выполнить"
-            time.sleep(0.5)
-            show_supplier_view(page, dm, supplier, from_senior)
-            
         except Exception as ex:
             print(f"Ошибка планирования: {ex}")
     
     # === ВЫПОЛНИТЬ ===
-    def complete_delivery(e, obj_id):
+    def complete_delivery(e, obj_id, complete_btn):
         try:
             object_deliveries = [d for d in dm.get_planned_deliveries() if d["object_id"] == obj_id]
             if not object_deliveries:
@@ -119,8 +123,11 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             
             dm.save_data()
             
-            # Перезагружаем экран
-            show_supplier_view(page, dm, supplier, from_senior)
+            # Деактивируем кнопку "Выполнить"
+            complete_btn.disabled = True
+            complete_btn.opacity = 0.5
+            
+            page.update()
             
         except Exception as ex:
             print(f"Ошибка выполнения: {ex}")
@@ -138,9 +145,19 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         obj_deliveries = [d for d in dm.get_planned_deliveries() if d["object_id"] == obj["id"]]
         has_plan = len(obj_deliveries) > 0
         
-        # Поля ввода
+        # Если есть план — показываем запланированное количество
+        if has_plan:
+            plan_o = next((d["quantity"] for d in obj_deliveries if d["gas_type"] == "КИСЛОРОД"), 0)
+            plan_p = next((d["quantity"] for d in obj_deliveries if d["gas_type"] == "ПРОПАН"), 0)
+            plan_date = obj_deliveries[0]["planned_date"]
+        else:
+            plan_o = oxygen_req
+            plan_p = propane_req
+            plan_date = datetime.now().strftime("%d.%m.%Y")
+        
+        # Поля ввода (ВСЕГДА редактируемые, без блокировок!)
         oxygen_input = ft.TextField(
-            value=str(oxygen_req),
+            value=str(plan_o),
             width=100,
             height=60,
             text_align="center",
@@ -152,7 +169,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         )
         
         propane_input = ft.TextField(
-            value=str(propane_req),
+            value=str(plan_p),
             width=100,
             height=60,
             text_align="center",
@@ -165,7 +182,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         
         # Поле даты (сегодня по умолчанию)
         date_field = ft.TextField(
-            value=datetime.now().strftime("%d.%m.%Y"),
+            value=plan_date,
             width=140,
             height=50,
             text_align="center",
@@ -175,11 +192,11 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             content_padding=10,
         )
         
-        # Кнопки (без передачи ссылок в lambda)
+        # Кнопки (ВСЕГДА активны, без блокировок!)
         plan_btn = ft.ElevatedButton(
             "ЗАПЛАНИРОВАТЬ",
-            on_click=lambda e, oid=obj["id"], oi=oxygen_input, pi=propane_input, df=date_field: 
-                plan_delivery(e, oid, oi, pi, df),
+            on_click=lambda e, oid=obj["id"], oi=oxygen_input, pi=propane_input, df=date_field, cb=complete_btn: 
+                plan_delivery(e, oid, oi, pi, df, cb),
             width=350,
             height=45,
             style=ft.ButtonStyle(
@@ -191,7 +208,8 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         
         complete_btn = ft.ElevatedButton(
             "ВЫПОЛНИТЬ",
-            on_click=lambda e, oid=obj["id"]: complete_delivery(e, oid),
+            on_click=lambda e, oid=obj["id"], cb=complete_btn: 
+                complete_delivery(e, oid, cb),
             width=350,
             height=45,
             style=ft.ButtonStyle(
@@ -203,7 +221,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             opacity=1 if has_plan else 0.5
         )
         
-        # Карточка как у мастера (широкая, с цветным фоном полей)
+        # Карточка
         return ft.Container(
             content=ft.Column([
                 # Название объекта и остаток
@@ -223,7 +241,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                 
                 ft.Container(height=15),
                 
-                # Поля ввода (с цветным фоном как у мастера)
+                # Поля ввода (с цветным фоном)
                 ft.Row([
                     ft.Container(
                         content=ft.Column([
@@ -251,9 +269,8 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                 
                 ft.Container(height=15),
                 
-                # Дата (просто поле, без календаря)
+                # Дата (без смайлика)
                 ft.Row([
-                    ft.Text("📅", size=16),
                     date_field,
                 ], alignment=ft.MainAxisAlignment.CENTER),
                 
