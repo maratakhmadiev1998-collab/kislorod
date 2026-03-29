@@ -28,42 +28,40 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         from login_screen import show_login
         show_login(page, dm)
     
-    # === АВТО-ФОРМАТ ДАТЫ (REAL-TIME) ===
-    def format_date_realtime(value):
-        """Форматирует дату при вводе: 30032026 → 30.03.2026"""
-        if not value:
-            return ""
-        # Убираем всё кроме цифр
-        digits = re.sub(r'\D', '', value)
-        # Ограничиваем 8 цифрами
-        digits = digits[:8]
-        # Форматируем
-        if len(digits) >= 6:
-            return f"{digits[0:2]}.{digits[2:4]}.{digits[4:6]}"
-        elif len(digits) >= 4:
-            return f"{digits[0:2]}.{digits[2:4]}."
-        elif len(digits) >= 2:
-            return f"{digits[0:2]}."
-        return digits
-    
-    # === ВЫДЕЛИТЬ ВСЁ ПРИ ФОКУСЕ (только для количества) ===
+    # === ВЫДЕЛИТЬ ВСЁ ПРИ ФОКУСЕ (ТОЛЬКО ДЛЯ КОЛИЧЕСТВА!) ===
     def select_all(e):
         e.control.focus()
         e.control.select_all()
     
-    # === ФОРМАТИРОВАНИЕ ДАТЫ ПРИ ВВОДЕ (БЕЗ select_all!) ===
-    def format_date_on_change(e):
-        """Форматирует дату при каждом изменении"""
+    # === ДАТА: МАСКА ВВОДА DD.MM.YYYY ===
+    def format_date_mask(e):
+        """Форматирует дату с фиксированными точками, курсор прыгает сам"""
         value = e.control.value
-        if value:
-            # Если уже полный формат — не трогаем
-            if len(value) == 10 and '.' in value:
-                return
-            formatted = format_date_realtime(value)
-            if formatted != value:
-                e.control.value = formatted
-                # ✅ НЕ выделяем текст после форматирования!
-                e.control.update()
+        cursor_pos = e.control.cursor_position if e.control.cursor_position else 0
+        
+        # Убираем всё кроме цифр
+        digits = re.sub(r'\D', '', value)
+        
+        # Ограничиваем 8 цифрами
+        digits = digits[:8]
+        
+        # Форматируем с точками
+        if len(digits) >= 6:
+            formatted = f"{digits[0:2]}.{digits[2:4]}.{digits[4:6]}"
+        elif len(digits) >= 4:
+            formatted = f"{digits[0:2]}.{digits[2:4]}."
+        elif len(digits) >= 2:
+            formatted = f"{digits[0:2]}."
+        else:
+            formatted = digits
+        
+        # Обновляем значение ТОЛЬКО если изменилось
+        if formatted != value:
+            e.control.value = formatted
+            # ✅ Ставим курсор в конец (не выделяем!)
+            e.control.cursor_position = len(formatted)
+        
+        e.control.update()
     
     # === ЗАПЛАНИРОВАТЬ ===
     def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field, complete_btn):
@@ -190,7 +188,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             plan_p = propane_req
             plan_date = datetime.now().strftime("%d.%m.%Y")
         
-        # ✅ Поля количества (с on_focus для выделения всего текста)
+        # ✅ Поля количества (с выделением при клике)
         oxygen_input = ft.TextField(
             value=str(plan_o),
             width=100,
@@ -201,7 +199,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             bgcolor=colors["surface"],
             text_size=24,
             content_padding=10,
-            on_focus=select_all,
+            on_focus=select_all,  # ✅ Выделять для количества
         )
         
         propane_input = ft.TextField(
@@ -214,10 +212,10 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             bgcolor=colors["surface"],
             text_size=24,
             content_padding=10,
-            on_focus=select_all,
+            on_focus=select_all,  # ✅ Выделять для количества
         )
         
-        # ✅ Поле даты (БЕЗ max_length, БЕЗ select_all на on_focus!)
+        # ✅ ПОЛЕ ДАТЫ: БЕЗ select_all, БЕЗ max_length, курсор в конце
         date_field = ft.TextField(
             value=plan_date,
             width=140,
@@ -228,9 +226,9 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             bgcolor=colors["surface"],
             content_padding=10,
             keyboard_type=ft.KeyboardType.NUMBER,
-            # ✅ УБРАЛ on_focus=select_all — теперь не выделяет при клике!
-            on_change=format_date_on_change,  # ✅ Форматируем при вводе
-            # ✅ УБРАЛ max_length=10 — не показывает счётчик "3/10"
+            # ✅ НЕТ on_focus=select_all — никогда не выделяет!
+            on_change=format_date_mask,  # ✅ Форматирует с курсором в конце
+            # ✅ НЕТ max_length — нет счётчика
         )
         
         # ✅ complete_btn ПЕРЕД plan_btn
