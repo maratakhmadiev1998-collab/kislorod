@@ -248,18 +248,27 @@ def show_master_view(page, dm, master, from_senior=False):
         
         # Планируемые поставки
         planned = dm.get_planned_deliveries(obj["id"])
-        planned_info = []
-        for p in planned:
-            planned_info.append(
-                ft.Container(
-                    content=ft.Text(f"План: {p['gas_type']} {p['quantity']} балл. на {p['planned_date']}", 
-                                   size=12, color=colors["warning"]),
-                    padding=5,
-                    bgcolor=colors["warning_light"],
-                    border_radius=4,
-                    margin=ft.margin.only(bottom=3)
-                )
+        if planned:
+            o_plan = next((p["quantity"] for p in planned if p["gas_type"] == "КИСЛОРОД"), 0)
+            p_plan = next((p["quantity"] for p in planned if p["gas_type"] == "ПРОПАН"), 0)
+            plan_date = planned[0]["planned_date"]
+    
+            planned_display = ft.Container(
+                content=ft.Row([
+                    ft.Text("Поставка:", size=11, color=colors["text_secondary"]),
+                    ft.Text(str(o_plan), size=11, color=colors["oxygen"], weight=ft.FontWeight.BOLD),
+                    ft.Text("|", size=11, color=colors["text_secondary"]),
+                    ft.Text(str(p_plan), size=11, color=colors["propane"], weight=ft.FontWeight.BOLD),
+                    ft.Text(plan_date, size=11, color=colors["text_secondary"]),
+                ], spacing=4),
+                padding=4,
+                bgcolor=colors["background"],
+                border_radius=4,
+                margin=ft.margin.only(top=5)
             )
+        else:
+            planned_display = ft.Container()
+    
         
         return ft.Container(
             content=ft.Column([
@@ -287,7 +296,7 @@ def show_master_view(page, dm, master, from_senior=False):
                 ], spacing=10),
                 
                 # Планируемые поставки
-                ft.Column(planned_info) if planned_info else ft.Container(),
+                planned_display,
                 
                 ft.Container(height=10),
                 
