@@ -1,4 +1,4 @@
-# main.py - Flet версия (ПОЛНАЯ, ФИНАЛЬНАЯ)
+# main.py - Flet версия (РАБОЧАЯ для 0.24.0)
 import flet as ft
 import os
 import traceback
@@ -20,7 +20,7 @@ def main(page: ft.Page):
         log("Инициализация страницы...")
         
         # === БАЗОВЫЕ НАСТРОЙКИ СТРАНИЦЫ ===
-        page.title = "НГДУ Нижнесортымскнефть"
+        page.title = "Кислород"  # ✅ Это работает!
         page.theme_mode = ft.ThemeMode.LIGHT
         page.padding = 0
         page.scroll = ft.ScrollMode.AUTO
@@ -32,19 +32,11 @@ def main(page: ft.Page):
         page.vertical_alignment = ft.MainAxisAlignment.START
         page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
         
-        # Запрет зума через JS (инъекция в веб-режиме)
+        # ❌ УБРАЛ: page.run_javascript() не работает в 0.24.0
+        # Оставил только client_storage (он работает)
         if page.web:
             page.client_storage.set("viewport_meta", 
                 "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no")
-            page.run_javascript("""
-                document.querySelector('meta[name="viewport"]')?.setAttribute('content', 
-                    'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-                document.addEventListener('touchend', function(e) {
-                    if (Date.now() - (window._lastTouchEnd || 0) <= 300) e.preventDefault();
-                    window._lastTouchEnd = Date.now();
-                }, {passive: false});
-                document.addEventListener('gesturestart', function(e) { e.preventDefault(); }, {passive: false});
-            """)
         
         log("Создание DataManager...")
         dm = DataManager()
@@ -65,15 +57,15 @@ def main(page: ft.Page):
         if DEBUG:
             traceback.print_exc()
         
+        # ❌ УБРАЛ: Кнопка "Обновить" через page.reload() не работает
+        # Просто показываем ошибку без кнопки
         page.add(
             ft.Container(
                 content=ft.Column([
                     ft.Icon(ft.icons.ERROR_OUTLINE, color="red", size=40),
                     ft.Text("Произошла ошибка при загрузке", weight=ft.FontWeight.BOLD, size=16),
                     ft.Text(str(e), size=12, color="grey", selectable=True),
-                    # ✅ ИСПРАВЛЕНИЕ 1: page.reload() → page.run_javascript("location.reload()")
-                    ft.ElevatedButton("Обновить", on_click=lambda e: page.run_javascript("location.reload()"), 
-                                     style=ft.ButtonStyle(color="white", bgcolor="blue"))
+                    ft.Text("Перезагрузите страницу вручную (F5)", color="grey", size=12)
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                 padding=30,
                 alignment=ft.alignment.center,
@@ -82,19 +74,14 @@ def main(page: ft.Page):
         )
 
 
-# === НАВИГАЦИЯ: ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (если нужно) ===
-# В Flet навигация работает через прямые вызовы функций, не через URL-роутинг.
-# Все переходы реализованы внутри view-файлов через прямые импорты:
-#   from views.master_view import show_master_view
-#   show_master_view(page, dm, master)
-# Это проще и надёжнее чем @ft.route() декораторы.
+# === НАВИГАЦИЯ ===
+# Все переходы через прямые импорты в view-файлах
 
 
 # === ТОЧКА ЗАПУСКА ===
 if __name__ == "__main__":
     print(">>> Запуск Flet приложения...")
     try:
-        # Определяем режим запуска
         use_web_mode = "--web" in sys.argv or sys.platform == "android" or "PORT" in os.environ
         
         if use_web_mode:
@@ -102,11 +89,11 @@ if __name__ == "__main__":
             ft.app(
                 target=main,
                 view=ft.AppView.WEB_BROWSER,
-                assets_dir=None,  # Отключаем assets для веба (если нет папки assets)
-                port=int(os.environ.get("PORT", 8551)),  # ← Flet на порту 8551
+                assets_dir=None,
+                port=int(os.environ.get("PORT", 8551)),
                 host="0.0.0.0",
-                # ✅ ИСПРАВЛЕНИЕ 2: upload_route удалён (нет в 0.24.0)
-                web_renderer="canvaskit"  # Более быстрый рендеринг
+                # ❌ УДАЛЕНО: upload_route (нет в 0.24.0)
+                web_renderer="canvaskit"
             )
         else:
             log("Запуск в десктоп-режиме")
