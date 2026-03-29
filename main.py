@@ -32,36 +32,17 @@ def main(page: ft.Page):
         page.vertical_alignment = ft.MainAxisAlignment.START
         page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
         
-        # ✅ ИСПРАВЛЕНИЕ 1: PWA МЕТА-ТЕГИ ЧЕРЕЗ JAVASCRIPT (вместо ft.Meta который не работает в 0.24.0)
-        page.run_javascript("""
-            var meta;
-            meta = document.createElement('meta');
-            meta.name = 'viewport';
-            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
-            document.head.appendChild(meta);
-            meta = document.createElement('meta');
-            meta.name = 'apple-mobile-web-app-capable';
-            meta.content = 'yes';
-            document.head.appendChild(meta);
-            meta = document.createElement('meta');
-            meta.name = 'apple-mobile-web-app-status-bar-style';
-            meta.content = 'black-translucent';
-            document.head.appendChild(meta);
-            meta = document.createElement('meta');
-            meta.name = 'apple-mobile-web-app-title';
-            meta.content = 'Кислород';
-            document.head.appendChild(meta);
-            meta = document.createElement('meta');
-            meta.name = 'theme-color';
-            meta.content = '#007AFF';
-            document.head.appendChild(meta);
-            meta = document.createElement('meta');
-            meta.name = 'format-detection';
-            meta.content = 'telephone=no';
-            document.head.appendChild(meta);
-        """)
+        # ✅ ИСПРАВЛЕНИЕ 1: PWA МЕТА-ТЕГИ ЧЕРЕЗ ft.Html (вместо page.meta_tags и run_javascript которые не работают в 0.24.0)
+        page.add(
+            ft.Html('<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">'),
+            ft.Html('<meta name="apple-mobile-web-app-capable" content="yes">'),
+            ft.Html('<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'),
+            ft.Html('<meta name="apple-mobile-web-app-title" content="Кислород">'),
+            ft.Html('<meta name="theme-color" content="#007AFF">'),
+            ft.Html('<meta name="format-detection" content="telephone=no">'),
+        )
         
-        # ✅ ИСПРАВЛЕНИЕ 2: АБСОЛЮТНЫЕ URL ДЛЯ СТАТИКИ (порт 8080 через nginx)
+        # ✅ ИСПРАВЛЕНИЕ 2: АБСОЛЮТНЫЕ URL ДЛЯ СТАТИКИ (порт 8080 через nginx) + Service Worker через ft.Html
         page.add(
             ft.Html('<link rel="manifest" href="http://45.146.165.37:8080/static/manifest.json">'),
             ft.Html('<link rel="apple-touch-icon" href="http://45.146.165.37:8080/static/icon-192.png">'),
@@ -85,19 +66,23 @@ def main(page: ft.Page):
             ''')
         )
         
-        # Запрет зума через JS (инъекция в веб-режиме) — ОСТАВЛЕНО КАК БЫЛО
+        # Запрет зума через JS (инъекция в веб-режиме) — ✅ ИСПРАВЛЕНИЕ 3: через ft.Html вместо run_javascript
         if page.web:
             page.client_storage.set("viewport_meta", 
                 "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no")
-            page.run_javascript("""
-                document.querySelector('meta[name="viewport"]')?.setAttribute('content', 
-                    'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-                document.addEventListener('touchend', function(e) {
-                    if (Date.now() - (window._lastTouchEnd || 0) <= 300) e.preventDefault();
-                    window._lastTouchEnd = Date.now();
-                }, {passive: false});
-                document.addEventListener('gesturestart', function(e) { e.preventDefault(); }, {passive: false});
-            """)
+            page.add(
+                ft.Html('''
+                <script>
+                    document.querySelector('meta[name="viewport"]')?.setAttribute('content', 
+                        'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                    document.addEventListener('touchend', function(e) {
+                        if (Date.now() - (window._lastTouchEnd || 0) <= 300) e.preventDefault();
+                        window._lastTouchEnd = Date.now();
+                    }, {passive: false});
+                    document.addEventListener('gesturestart', function(e) { e.preventDefault(); }, {passive: false});
+                </script>
+                ''')
+            )
         
         log("Создание DataManager...")
         dm = DataManager()
@@ -118,15 +103,14 @@ def main(page: ft.Page):
         if DEBUG:
             traceback.print_exc()
         
+        # ✅ ИСПРАВЛЕНИЕ 4: Кнопка "Обновить" через ft.Html + onclick (вместо page.reload() который не работает)
         page.add(
             ft.Container(
                 content=ft.Column([
                     ft.Icon(ft.icons.ERROR_OUTLINE, color="red", size=40),
                     ft.Text("Произошла ошибка при загрузке", weight=ft.FontWeight.BOLD, size=16),
                     ft.Text(str(e), size=12, color="grey", selectable=True),
-                    # ✅ ИСПРАВЛЕНИЕ 3: page.reload() не существует → используем JS
-                    ft.ElevatedButton("Обновить", on_click=lambda e: page.run_javascript("location.reload()"), 
-                                     style=ft.ButtonStyle(color="white", bgcolor="blue"))
+                    ft.Html('<button onclick="location.reload()" style="background:#007AFF;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer">Обновить</button>')
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                 padding=30,
                 alignment=ft.alignment.center,
@@ -155,8 +139,7 @@ if __name__ == "__main__":
             ft.app(
                 target=main,
                 view=ft.AppView.WEB_BROWSER,
-                # ✅ ИСПРАВЛЕНИЕ 4: assets_dir=None для веба (Flet 0.24.0 не раздаёт статику сам)
-                assets_dir=None,
+                assets_dir=None,  # ✅ Flet 0.24.0: None для веба
                 port=int(os.environ.get("PORT", 8551)),
                 host="0.0.0.0",
                 web_renderer="canvaskit"
