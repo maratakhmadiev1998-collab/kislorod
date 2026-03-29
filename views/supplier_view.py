@@ -28,7 +28,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         show_login(page, dm)
     
     # === ЗАПЛАНИРОВАТЬ ===
-    def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field):
+    def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field, complete_btn):
         try:
             o_new = int(oxygen_input.value) if oxygen_input.value else 0
             p_new = int(propane_input.value) if propane_input.value else 0
@@ -71,6 +71,10 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             oxygen_input.bgcolor = colors["success_light"]
             propane_input.bgcolor = colors["success_light"]
             
+            # ✅ АКТИВИРУЕМ кнопку "Выполнить"
+            complete_btn.disabled = False
+            complete_btn.opacity = 1
+            
             page.update()
             
             # Убираем подсветку через 2 сек
@@ -81,6 +85,13 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                 page.update()
             
             threading.Thread(target=reset, daemon=True).start()
+            
+            # ✅ ПЕРЕЗАГРУЖАЕМ экран через 0.5 сек
+            def refresh():
+                time.sleep(0.5)
+                show_supplier_view(page, dm, supplier, from_senior)
+            
+            threading.Thread(target=refresh, daemon=True).start()
             
         except Exception as ex:
             print(f"Ошибка планирования: {ex}")
@@ -119,7 +130,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             
             dm.save_data()
             
-            # Перезагружаем экран чтобы обновить состояние кнопок
+            # Перезагружаем экран
             show_supplier_view(page, dm, supplier, from_senior)
             
         except Exception as ex:
@@ -185,20 +196,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             content_padding=10,
         )
         
-        # ✅ Кнопки БЕЗ передачи ссылок друг на друга
-        plan_btn = ft.ElevatedButton(
-            "ЗАПЛАНИРОВАТЬ",
-            on_click=lambda e, oid=obj["id"], oi=oxygen_input, pi=propane_input, df=date_field: 
-                plan_delivery(e, oid, oi, pi, df),
-            width=350,
-            height=45,
-            style=ft.ButtonStyle(
-                color="white",
-                bgcolor=colors["primary"],
-                shape=ft.RoundedRectangleBorder(radius=6)
-            )
-        )
-        
+        # ✅ СОЗДАЁМ complete_btn ПЕРЕД plan_btn (чтобы передать в lambda)
         complete_btn = ft.ElevatedButton(
             "ВЫПОЛНИТЬ",
             on_click=lambda e, oid=obj["id"]: complete_delivery(e, oid),
@@ -211,6 +209,20 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             ),
             disabled=not has_plan,
             opacity=1 if has_plan else 0.5
+        )
+        
+        # ✅ plan_btn ПОСЛЕ complete_btn (можем передать cb=complete_btn)
+        plan_btn = ft.ElevatedButton(
+            "ЗАПЛАНИРОВАТЬ",
+            on_click=lambda e, oid=obj["id"], oi=oxygen_input, pi=propane_input, df=date_field, cb=complete_btn: 
+                plan_delivery(e, oid, oi, pi, df, cb),
+            width=350,
+            height=45,
+            style=ft.ButtonStyle(
+                color="white",
+                bgcolor=colors["primary"],
+                shape=ft.RoundedRectangleBorder(radius=6)
+            )
         )
         
         # Карточка
@@ -231,7 +243,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                     )
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 
-                ft.Container(height=15),
+                ft.Container(height=4),
                 
                 # Поля ввода (с цветным фоном)
                 ft.Row([
@@ -259,18 +271,18 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                     ),
                 ], spacing=10),
                 
-                ft.Container(height=15),
+                ft.Container(height=4),
                 
                 # Дата (без смайлика)
                 ft.Row([
                     date_field,
                 ], alignment=ft.MainAxisAlignment.CENTER),
                 
-                ft.Container(height=15),
+                ft.Container(height=4),
                 
                 # Кнопки
                 plan_btn,
-                ft.Container(height=8),
+                ft.Container(height=4),
                 complete_btn,
                 
             ]),
