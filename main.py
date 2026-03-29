@@ -1,4 +1,4 @@
-# main.py - Flet версия (ПОЛНАЯ, ФИНАЛЬНАЯ + PWA)
+# main.py - Flet версия (ПОЛНАЯ, ФИНАЛЬНАЯ + PWA для 0.24.0)
 import flet as ft
 import os
 import traceback
@@ -20,7 +20,7 @@ def main(page: ft.Page):
         log("Инициализация страницы...")
         
         # === БАЗОВЫЕ НАСТРОЙКИ СТРАНИЦЫ ===
-        page.title = "Кислород"  # ✅ ИЗМЕНИЛ: было "НГДУ Нижнесортымскнефть"
+        page.title = "Кислород"  # ✅ Название для вкладки и PWA
         page.theme_mode = ft.ThemeMode.LIGHT
         page.padding = 0
         page.scroll = ft.ScrollMode.AUTO
@@ -32,37 +32,60 @@ def main(page: ft.Page):
         page.vertical_alignment = ft.MainAxisAlignment.START
         page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
         
-        # ✅ PWA МЕТА-ТЕГИ (ДОБАВЛЕНО)
-        page.meta_tags = [
-            ft.Meta(name="viewport", content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"),
-            ft.Meta(name="apple-mobile-web-app-capable", content="yes"),
-            ft.Meta(name="apple-mobile-web-app-status-bar-style", content="black-translucent"),
-            ft.Meta(name="apple-mobile-web-app-title", content="Кислород"),
-            ft.Meta(name="theme-color", content="#007AFF"),
-            ft.Meta(name="format-detection", content="telephone=no"),
-        ]
+        # ✅ PWA МЕТА-ТЕГИ ЧЕРЕЗ JAVASCRIPT (Flet 0.24.0 совместимо)
+        page.run_javascript("""
+            var meta;
+            
+            // viewport
+            meta = document.createElement('meta');
+            meta.name = 'viewport';
+            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+            document.head.appendChild(meta);
+            
+            // apple-mobile-web-app-capable
+            meta = document.createElement('meta');
+            meta.name = 'apple-mobile-web-app-capable';
+            meta.content = 'yes';
+            document.head.appendChild(meta);
+            
+            // apple-mobile-web-app-status-bar-style
+            meta = document.createElement('meta');
+            meta.name = 'apple-mobile-web-app-status-bar-style';
+            meta.content = 'black-translucent';
+            document.head.appendChild(meta);
+            
+            // apple-mobile-web-app-title (название на рабочем столе iPhone)
+            meta = document.createElement('meta');
+            meta.name = 'apple-mobile-web-app-title';
+            meta.content = 'Кислород';
+            document.head.appendChild(meta);
+            
+            // theme-color
+            meta = document.createElement('meta');
+            meta.name = 'theme-color';
+            meta.content = '#007AFF';
+            document.head.appendChild(meta);
+            
+            // format-detection
+            meta = document.createElement('meta');
+            meta.name = 'format-detection';
+            meta.content = 'telephone=no';
+            document.head.appendChild(meta);
+        """)
         
-        # ✅ PWA ССЫЛКИ (ДОБАВЛЕНО)
+        # ✅ PWA ССЫЛКИ ЧЕРЕЗ ft.Html (АБСОЛЮТНЫЕ URL С ПОРТОМ 8080)
         page.add(
-            ft.Html('<link rel="manifest" href="/static/manifest.json">'),
-            ft.Html('<link rel="apple-touch-icon" href="/static/icon-192.png">'),
-        )
-        
-        # ✅ SERVICE WORKER (ДОБАВЛЕНО)
-        page.add(
+            ft.Html('<link rel="manifest" href="http://45.146.165.37:8080/static/manifest.json">'),
+            ft.Html('<link rel="apple-touch-icon" href="http://45.146.165.37:8080/static/icon-192.png">'),
             ft.Html('''
             <script>
             if ("serviceWorker" in navigator) {
-                navigator.serviceWorker.register("/static/sw.js")
+                navigator.serviceWorker.register("http://45.146.165.37:8080/static/sw.js")
                 .then((reg) => console.log("✅ SW registered:", reg))
                 .catch((err) => console.log("❌ SW error:", err));
             }
             </script>
-            ''')
-        )
-        
-        # ✅ CSS ДЛЯ БЛОКИРОВКИ ZOOM (ДОБАВЛЕНО)
-        page.add(
+            '''),
             ft.Html('''
             <style>
                 html, body { -webkit-user-zoom: fixed !important; -webkit-text-size-adjust: 100% !important; }
@@ -113,7 +136,7 @@ def main(page: ft.Page):
                     ft.Icon(ft.icons.ERROR_OUTLINE, color="red", size=40),
                     ft.Text("Произошла ошибка при загрузке", weight=ft.FontWeight.BOLD, size=16),
                     ft.Text(str(e), size=12, color="grey", selectable=True),
-                    ft.ElevatedButton("Обновить", on_click=lambda e: page.reload(), 
+                    ft.ElevatedButton("Обновить", on_click=lambda e: page.run_javascript("location.reload()"), 
                                      style=ft.ButtonStyle(color="white", bgcolor="blue"))
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                 padding=30,
@@ -143,18 +166,18 @@ if __name__ == "__main__":
             ft.app(
                 target=main,
                 view=ft.AppView.WEB_BROWSER,
-                assets_dir="static",  # ✅ ИЗМЕНИЛ: было None, теперь "static" для PWA
+                assets_dir=None,  # ✅ Flet 0.24.0: None для веба
                 port=int(os.environ.get("PORT", 8551)),
                 host="0.0.0.0",
-                upload_route="/upload",
                 web_renderer="canvaskit"
+                # ❌ upload_route удалён (нет в 0.24.0)
             )
         else:
             log("Запуск в десктоп-режиме")
             ft.app(
                 target=main,
                 view=ft.AppView.FLET_APP,
-                assets_dir="static",  # ✅ ИЗМЕНИЛ: было "assets", теперь "static"
+                assets_dir=None,  # ✅ Единый подход
                 port=int(os.environ.get("PORT", 8551)),
                 host="0.0.0.0"
             )
