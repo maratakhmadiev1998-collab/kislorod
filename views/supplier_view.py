@@ -31,6 +31,8 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
     # === АВТО-ФОРМАТ ДАТЫ ===
     def format_date(value):
         """Преобразует 30032026 → 30.03.2026"""
+        if not value:
+            return ""
         digits = re.sub(r'\D', '', value)  # Убираем всё кроме цифр
         if len(digits) >= 8:
             return f"{digits[0:2]}.{digits[2:4]}.{digits[4:8]}"
@@ -40,12 +42,22 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             return f"{digits[0:2]}.{digits[2:4]}"
         elif len(digits) >= 2:
             return f"{digits[0:2]}"
-        return value
+        return digits
     
     # === ВЫДЕЛИТЬ ВСЁ ПРИ ФОКУСЕ ===
     def select_all(e):
         e.control.focus()
         e.control.select_all()
+    
+    # === ФОРМАТИРОВАТЬ ДАТУ ПРИ УХОДЕ С ПОЛЯ ===
+    def format_date_on_blur(e):
+        """Форматирует дату только когда пользователь ушёл с поля"""
+        value = e.control.value
+        if value:
+            formatted = format_date(value)
+            if formatted != value:
+                e.control.value = formatted
+                e.control.update()
     
     # === ЗАПЛАНИРОВАТЬ ===
     def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field, complete_btn):
@@ -178,12 +190,12 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             width=100,
             height=60,
             text_align="center",
-            keyboard_type=ft.KeyboardType.NUMBER,  # ✅ Только цифры
+            keyboard_type=ft.KeyboardType.NUMBER,
             border_color=colors["border"],
             bgcolor=colors["surface"],
             text_size=24,
             content_padding=10,
-            on_focus=select_all,  # ✅ Выделить всё при клике
+            on_focus=select_all,
         )
         
         propane_input = ft.TextField(
@@ -191,15 +203,15 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             width=100,
             height=60,
             text_align="center",
-            keyboard_type=ft.KeyboardType.NUMBER,  # ✅ Только цифры
+            keyboard_type=ft.KeyboardType.NUMBER,
             border_color=colors["border"],
             bgcolor=colors["surface"],
             text_size=24,
             content_padding=10,
-            on_focus=select_all,  # ✅ Выделить всё при клике
+            on_focus=select_all,
         )
         
-        # ✅ Поле даты (авто-формат + цифровая клавиатура)
+        # ✅ Поле даты (форматирование ТОЛЬКО при on_blur!)
         date_field = ft.TextField(
             value=plan_date,
             width=140,
@@ -209,9 +221,9 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             border_color=colors["border"],
             bgcolor=colors["surface"],
             content_padding=10,
-            keyboard_type=ft.KeyboardType.NUMBER,  # ✅ Только цифры
-            on_focus=select_all,  # ✅ Выделить всё при клике
-            on_change=lambda e: format_date_on_change(e),  # ✅ Авто-формат
+            keyboard_type=ft.KeyboardType.NUMBER,
+            on_focus=select_all,
+            on_blur=format_date_on_blur,  # ✅ Форматируем только когда ушли с поля
         )
         
         # ✅ complete_btn ПЕРЕД plan_btn
@@ -311,16 +323,6 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             shadow=ft.BoxShadow(blur_radius=4, color="#D0D0D0"),
             width=page.width * 0.95 if page.width else 400,
         )
-    
-    # === АВТО-ФОРМАТ ДАТЫ ПРИ ВВОДЕ ===
-    def format_date_on_change(e):
-        """Форматирует дату при вводе: 30032026 → 30.03.2026"""
-        value = e.control.value
-        if value:
-            formatted = format_date(value)
-            if formatted != value:
-                e.control.value = formatted
-                e.control.update()
     
     # Собираем карточки
     object_cards = []
