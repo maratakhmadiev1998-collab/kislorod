@@ -215,7 +215,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             on_focus=select_all,  # ✅ Выделять для количества
         )
         
-        # ✅ ПОЛЕ ДАТЫ: БЕЗ select_all, БЕЗ max_length, курсор в конце
+        # ✅ ПОЛЕ ДАТЫ: DECIMAL_NUMBER (цифры + точка)
         date_field = ft.TextField(
             value=plan_date,
             width=140,
@@ -225,10 +225,8 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             border_color=colors["border"],
             bgcolor=colors["surface"],
             content_padding=10,
-            keyboard_type=ft.KeyboardType.NUMBER,
-            # ✅ НЕТ on_focus=select_all — никогда не выделяет!
-            on_change=format_date_mask,  # ✅ Форматирует с курсором в конце
-            # ✅ НЕТ max_length — нет счётчика
+            keyboard_type=ft.KeyboardType.DECIMAL_NUMBER,  # ✅ ЦИФРЫ + ТОЧКА!
+            on_change=format_date_mask,
         )
         
         # ✅ complete_btn ПЕРЕД plan_btn
