@@ -46,23 +46,23 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             return f"{digits[0:2]}."
         return digits
     
-    # === ВЫДЕЛИТЬ ВСЁ ПРИ ФОКУСЕ ===
+    # === ВЫДЕЛИТЬ ВСЁ ПРИ ФОКУСЕ (только для количества) ===
     def select_all(e):
         e.control.focus()
         e.control.select_all()
     
-    # === ФОРМАТИРОВАНИЕ ДАТЫ ПРИ ВВОДЕ ===
+    # === ФОРМАТИРОВАНИЕ ДАТЫ ПРИ ВВОДЕ (БЕЗ select_all!) ===
     def format_date_on_change(e):
         """Форматирует дату при каждом изменении"""
         value = e.control.value
         if value:
-            # Если уже есть точки — не трогаем
-            if '.' in value and len(value) == 10:
+            # Если уже полный формат — не трогаем
+            if len(value) == 10 and '.' in value:
                 return
             formatted = format_date_realtime(value)
             if formatted != value:
                 e.control.value = formatted
-                e.control.cursor_position = len(formatted)
+                # ✅ НЕ выделяем текст после форматирования!
                 e.control.update()
     
     # === ЗАПЛАНИРОВАТЬ ===
@@ -190,7 +190,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             plan_p = propane_req
             plan_date = datetime.now().strftime("%d.%m.%Y")
         
-        # ✅ Поля ввода (с on_focus для выделения всего текста)
+        # ✅ Поля количества (с on_focus для выделения всего текста)
         oxygen_input = ft.TextField(
             value=str(plan_o),
             width=100,
@@ -217,7 +217,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             on_focus=select_all,
         )
         
-        # ✅ Поле даты (авто-формат ПРИ ВВОДЕ + ограничение 10 символов)
+        # ✅ Поле даты (БЕЗ max_length, БЕЗ select_all на on_focus!)
         date_field = ft.TextField(
             value=plan_date,
             width=140,
@@ -228,9 +228,9 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             bgcolor=colors["surface"],
             content_padding=10,
             keyboard_type=ft.KeyboardType.NUMBER,
-            on_focus=select_all,
+            # ✅ УБРАЛ on_focus=select_all — теперь не выделяет при клике!
             on_change=format_date_on_change,  # ✅ Форматируем при вводе
-            max_length=10,  # ✅ Не больше 10 символов (ДД.ММ.ГГГГ)
+            # ✅ УБРАЛ max_length=10 — не показывает счётчик "3/10"
         )
         
         # ✅ complete_btn ПЕРЕД plan_btn
