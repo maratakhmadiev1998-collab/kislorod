@@ -33,33 +33,24 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         e.control.focus()
         e.control.select_all()
     
-    # === ДАТА: МАСКА ВВОДА DD.MM.YYYY ===
-    def format_date_mask(e):
-        """Форматирует дату с фиксированными точками, курсор прыгает сам"""
+    # === ДАТА: ФОРМАТИРОВАНИЕ ПРИ ПОТЕРЕ ФОКУСА ===
+    def format_date_on_blur(e):
+        """Форматирует дату когда пользователь ушёл с поля"""
         value = e.control.value
-        cursor_pos = e.control.cursor_position if e.control.cursor_position else 0
+        if not value:
+            return
         
         # Убираем всё кроме цифр
         digits = re.sub(r'\D', '', value)
         
-        # Ограничиваем 8 цифрами
-        digits = digits[:8]
-        
-        # Форматируем с точками
-        if len(digits) >= 6:
-            formatted = f"{digits[0:2]}.{digits[2:4]}.{digits[4:6]}"
-        elif len(digits) >= 4:
-            formatted = f"{digits[0:2]}.{digits[2:4]}."
-        elif len(digits) >= 2:
-            formatted = f"{digits[0:2]}."
-        else:
-            formatted = digits
-        
-        # Обновляем значение ТОЛЬКО если изменилось
-        if formatted != value:
+        # Форматируем если 8 цифр
+        if len(digits) == 8:
+            formatted = f"{digits[0:2]}.{digits[2:4]}.{digits[4:8]}"
             e.control.value = formatted
-            # ✅ Ставим курсор в конец (не выделяем!)
-            e.control.cursor_position = len(formatted)
+        elif len(digits) == 6:
+            formatted = f"{digits[0:2]}.{digits[2:4]}.{digits[4:6]}"
+            e.control.value = formatted
+        # Если меньше — оставляем как есть (пользователь ещё вводит)
         
         e.control.update()
     
@@ -107,7 +98,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             oxygen_input.bgcolor = colors["success_light"]
             propane_input.bgcolor = colors["success_light"]
             
-            # ✅ АКТИВИРУЕМ кнопку "Выполнить" (без refresh!)
+            # ✅ АКТИВИРУЕМ кнопку "Выполнить"
             complete_btn.disabled = False
             complete_btn.opacity = 1
             
@@ -159,7 +150,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             
             dm.save_data()
             
-            # Перезагружаем экран (после выполнения — можно)
+            # Перезагружаем экран
             show_supplier_view(page, dm, supplier, from_senior)
             
         except Exception as ex:
@@ -199,7 +190,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             bgcolor=colors["surface"],
             text_size=24,
             content_padding=10,
-            on_focus=select_all,  # ✅ Выделять для количества
+            on_focus=select_all,
         )
         
         propane_input = ft.TextField(
@@ -212,10 +203,10 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             bgcolor=colors["surface"],
             text_size=24,
             content_padding=10,
-            on_focus=select_all,  # ✅ Выделять для количества
+            on_focus=select_all,
         )
         
-        # ✅ ПОЛЕ ДАТЫ: DECIMAL_NUMBER (цифры + точка)
+        # ✅ ПОЛЕ ДАТЫ: БЕЗ select_all, БЕЗ on_change, ТОЛЬКО on_blur
         date_field = ft.TextField(
             value=plan_date,
             width=140,
@@ -225,8 +216,8 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             border_color=colors["border"],
             bgcolor=colors["surface"],
             content_padding=10,
-            keyboard_type=ft.KeyboardType.DECIMAL_NUMBER,  # ✅ ЦИФРЫ + ТОЧКА!
-            on_change=format_date_mask,
+            keyboard_type=ft.KeyboardType.NUMBER,
+            on_blur=format_date_on_blur,  # ✅ Форматируем только при уходе с поля
         )
         
         # ✅ complete_btn ПЕРЕД plan_btn
