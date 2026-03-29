@@ -6,6 +6,7 @@ import sys
 import os
 import threading
 import time
+import re
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -26,6 +27,25 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                 return
         from login_screen import show_login
         show_login(page, dm)
+    
+    # === АВТО-ФОРМАТ ДАТЫ ===
+    def format_date(value):
+        """Преобразует 30032026 → 30.03.2026"""
+        digits = re.sub(r'\D', '', value)  # Убираем всё кроме цифр
+        if len(digits) >= 8:
+            return f"{digits[0:2]}.{digits[2:4]}.{digits[4:8]}"
+        elif len(digits) >= 6:
+            return f"{digits[0:2]}.{digits[2:4]}.{digits[4:6]}"
+        elif len(digits) >= 4:
+            return f"{digits[0:2]}.{digits[2:4]}"
+        elif len(digits) >= 2:
+            return f"{digits[0:2]}"
+        return value
+    
+    # === ВЫДЕЛИТЬ ВСЁ ПРИ ФОКУСЕ ===
+    def select_all(e):
+        e.control.focus()
+        e.control.select_all()
     
     # === ЗАПЛАНИРОВАТЬ ===
     def plan_delivery(e, obj_id, oxygen_input, propane_input, date_field, complete_btn):
@@ -85,8 +105,6 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                 page.update()
             
             threading.Thread(target=reset, daemon=True).start()
-            
-            # ❌ УБРАЛ refresh() — он сбрасывал кнопку!
             
         except Exception as ex:
             print(f"Ошибка планирования: {ex}")
@@ -154,17 +172,18 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             plan_p = propane_req
             plan_date = datetime.now().strftime("%d.%m.%Y")
         
-        # Поля ввода
+        # ✅ Поля ввода (с on_focus для выделения всего текста)
         oxygen_input = ft.TextField(
             value=str(plan_o),
             width=100,
             height=60,
             text_align="center",
-            keyboard_type=ft.KeyboardType.NUMBER,
+            keyboard_type=ft.KeyboardType.NUMBER,  # ✅ Только цифры
             border_color=colors["border"],
             bgcolor=colors["surface"],
             text_size=24,
             content_padding=10,
+            on_focus=select_all,  # ✅ Выделить всё при клике
         )
         
         propane_input = ft.TextField(
@@ -172,14 +191,15 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             width=100,
             height=60,
             text_align="center",
-            keyboard_type=ft.KeyboardType.NUMBER,
+            keyboard_type=ft.KeyboardType.NUMBER,  # ✅ Только цифры
             border_color=colors["border"],
             bgcolor=colors["surface"],
             text_size=24,
             content_padding=10,
+            on_focus=select_all,  # ✅ Выделить всё при клике
         )
         
-        # Поле даты
+        # ✅ Поле даты (авто-формат + цифровая клавиатура)
         date_field = ft.TextField(
             value=plan_date,
             width=140,
@@ -189,6 +209,9 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             border_color=colors["border"],
             bgcolor=colors["surface"],
             content_padding=10,
+            keyboard_type=ft.KeyboardType.NUMBER,  # ✅ Только цифры
+            on_focus=select_all,  # ✅ Выделить всё при клике
+            on_change=lambda e: format_date_on_change(e),  # ✅ Авто-формат
         )
         
         # ✅ complete_btn ПЕРЕД plan_btn
@@ -266,18 +289,18 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                     ),
                 ], spacing=10),
                 
-                ft.Container(height=4),   # ✅ Отступ 4px (было 15)
+                ft.Container(height=4),
                 
                 # Дата (без смайлика)
                 ft.Row([
                     date_field,
                 ], alignment=ft.MainAxisAlignment.CENTER),
                 
-                ft.Container(height=4),   # ✅ Отступ 4px (было 15)
+                ft.Container(height=4),
                 
                 # Кнопки
                 plan_btn,
-                ft.Container(height=4),   # ✅ Отступ 4px (было 8)
+                ft.Container(height=4),
                 complete_btn,
                 
             ]),
@@ -288,6 +311,16 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             shadow=ft.BoxShadow(blur_radius=4, color="#D0D0D0"),
             width=page.width * 0.95 if page.width else 400,
         )
+    
+    # === АВТО-ФОРМАТ ДАТЫ ПРИ ВВОДЕ ===
+    def format_date_on_change(e):
+        """Форматирует дату при вводе: 30032026 → 30.03.2026"""
+        value = e.control.value
+        if value:
+            formatted = format_date(value)
+            if formatted != value:
+                e.control.value = formatted
+                e.control.update()
     
     # Собираем карточки
     object_cards = []
