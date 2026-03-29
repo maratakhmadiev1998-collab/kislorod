@@ -28,20 +28,22 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         from login_screen import show_login
         show_login(page, dm)
     
-    # === АВТО-ФОРМАТ ДАТЫ ===
-    def format_date(value):
-        """Преобразует 30032026 → 30.03.2026"""
+    # === АВТО-ФОРМАТ ДАТЫ (REAL-TIME) ===
+    def format_date_realtime(value):
+        """Форматирует дату при вводе: 30032026 → 30.03.2026"""
         if not value:
             return ""
-        digits = re.sub(r'\D', '', value)  # Убираем всё кроме цифр
-        if len(digits) >= 8:
-            return f"{digits[0:2]}.{digits[2:4]}.{digits[4:8]}"
-        elif len(digits) >= 6:
+        # Убираем всё кроме цифр
+        digits = re.sub(r'\D', '', value)
+        # Ограничиваем 8 цифрами
+        digits = digits[:8]
+        # Форматируем
+        if len(digits) >= 6:
             return f"{digits[0:2]}.{digits[2:4]}.{digits[4:6]}"
         elif len(digits) >= 4:
-            return f"{digits[0:2]}.{digits[2:4]}"
+            return f"{digits[0:2]}.{digits[2:4]}."
         elif len(digits) >= 2:
-            return f"{digits[0:2]}"
+            return f"{digits[0:2]}."
         return digits
     
     # === ВЫДЕЛИТЬ ВСЁ ПРИ ФОКУСЕ ===
@@ -49,14 +51,18 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
         e.control.focus()
         e.control.select_all()
     
-    # === ФОРМАТИРОВАТЬ ДАТУ ПРИ УХОДЕ С ПОЛЯ ===
-    def format_date_on_blur(e):
-        """Форматирует дату только когда пользователь ушёл с поля"""
+    # === ФОРМАТИРОВАНИЕ ДАТЫ ПРИ ВВОДЕ ===
+    def format_date_on_change(e):
+        """Форматирует дату при каждом изменении"""
         value = e.control.value
         if value:
-            formatted = format_date(value)
+            # Если уже есть точки — не трогаем
+            if '.' in value and len(value) == 10:
+                return
+            formatted = format_date_realtime(value)
             if formatted != value:
                 e.control.value = formatted
+                e.control.cursor_position = len(formatted)
                 e.control.update()
     
     # === ЗАПЛАНИРОВАТЬ ===
@@ -211,7 +217,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             on_focus=select_all,
         )
         
-        # ✅ Поле даты (форматирование ТОЛЬКО при on_blur!)
+        # ✅ Поле даты (авто-формат ПРИ ВВОДЕ + ограничение 10 символов)
         date_field = ft.TextField(
             value=plan_date,
             width=140,
@@ -223,7 +229,8 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             content_padding=10,
             keyboard_type=ft.KeyboardType.NUMBER,
             on_focus=select_all,
-            on_blur=format_date_on_blur,  # ✅ Форматируем только когда ушли с поля
+            on_change=format_date_on_change,  # ✅ Форматируем при вводе
+            max_length=10,  # ✅ Не больше 10 символов (ДД.ММ.ГГГГ)
         )
         
         # ✅ complete_btn ПЕРЕД plan_btn
