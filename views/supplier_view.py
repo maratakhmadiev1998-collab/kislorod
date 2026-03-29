@@ -71,7 +71,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             oxygen_input.bgcolor = colors["success_light"]
             propane_input.bgcolor = colors["success_light"]
             
-            # ✅ АКТИВИРУЕМ кнопку "Выполнить"
+            # ✅ АКТИВИРУЕМ кнопку "Выполнить" (без refresh!)
             complete_btn.disabled = False
             complete_btn.opacity = 1
             
@@ -86,12 +86,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             
             threading.Thread(target=reset, daemon=True).start()
             
-            # ✅ ПЕРЕЗАГРУЖАЕМ экран через 0.5 сек
-            def refresh():
-                time.sleep(0.5)
-                show_supplier_view(page, dm, supplier, from_senior)
-            
-            threading.Thread(target=refresh, daemon=True).start()
+            # ❌ УБРАЛ refresh() — он сбрасывал кнопку!
             
         except Exception as ex:
             print(f"Ошибка планирования: {ex}")
@@ -130,7 +125,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             
             dm.save_data()
             
-            # Перезагружаем экран
+            # Перезагружаем экран (после выполнения — можно)
             show_supplier_view(page, dm, supplier, from_senior)
             
         except Exception as ex:
@@ -196,7 +191,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             content_padding=10,
         )
         
-        # ✅ СОЗДАЁМ complete_btn ПЕРЕД plan_btn (чтобы передать в lambda)
+        # ✅ complete_btn ПЕРЕД plan_btn
         complete_btn = ft.ElevatedButton(
             "ВЫПОЛНИТЬ",
             on_click=lambda e, oid=obj["id"]: complete_delivery(e, oid),
@@ -211,7 +206,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             opacity=1 if has_plan else 0.5
         )
         
-        # ✅ plan_btn ПОСЛЕ complete_btn (можем передать cb=complete_btn)
+        # ✅ plan_btn ПОСЛЕ complete_btn
         plan_btn = ft.ElevatedButton(
             "ЗАПЛАНИРОВАТЬ",
             on_click=lambda e, oid=obj["id"], oi=oxygen_input, pi=propane_input, df=date_field, cb=complete_btn: 
@@ -225,7 +220,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
             )
         )
         
-        # Карточка
+        # Карточка (отступы по 4px)
         return ft.Container(
             content=ft.Column([
                 # Название объекта и остаток
@@ -243,7 +238,7 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                     )
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 
-                ft.Container(height=4),
+                ft.Container(height=15),
                 
                 # Поля ввода (с цветным фоном)
                 ft.Row([
@@ -271,18 +266,18 @@ def show_supplier_view(page, dm, supplier, from_senior=False):
                     ),
                 ], spacing=10),
                 
-                ft.Container(height=4),
+                ft.Container(height=4),   # ✅ Отступ 4px (было 15)
                 
                 # Дата (без смайлика)
                 ft.Row([
                     date_field,
                 ], alignment=ft.MainAxisAlignment.CENTER),
                 
-                ft.Container(height=4),
+                ft.Container(height=4),   # ✅ Отступ 4px (было 15)
                 
                 # Кнопки
                 plan_btn,
-                ft.Container(height=4),
+                ft.Container(height=4),   # ✅ Отступ 4px (было 8)
                 complete_btn,
                 
             ]),
