@@ -1,4 +1,4 @@
-# main.py - Flet версия (АВТОВХОД + ФИКС ЗАГРУЗКИ)
+# main.py - Flet версия (АВТОВХОД + ФИКС ЗАГРУЗКИ для 0.24.0)
 import flet as ft
 import os
 import traceback
@@ -26,55 +26,16 @@ def main(page: ft.Page):
         page.vertical_alignment = ft.MainAxisAlignment.START
         page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
         
-        # ✅ ФИКС ЗАГРУЗКИ + РЕГИСТРАЦИЯ SERVICE WORKER
-        if page.web:
-            page.client_storage.set("viewport_meta", 
-                "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no")
-            
-            # Регистрация Service Worker для кэша
-            page.run_javascript("""
-                if ("serviceWorker" in navigator) {
-                    navigator.serviceWorker.register("http://45.146.165.37:8080/static/sw.js")
-                    .then(r => console.log("✅ SW registered:", r))
-                    .catch(e => console.log("❌ SW error:", e));
-                }
-                
-                // Перезагрузка если загрузка > 10 сек
-                window.addEventListener('load', () => {
-                    setTimeout(() => {
-                        var loadingEl = document.querySelector('.flet-app-loading, [class*="loading"]');
-                        if (loadingEl) {
-                            console.log('⚠️ Загрузка > 10 сек — перезагружаем');
-                            location.reload();
-                        }
-                    }, 10000);
-                });
-                
-                // Перезагрузка при возврате в приложение
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'visible') {
-                        console.log('✅ Возврат — перезагрузка');
-                        setTimeout(() => location.reload(), 500);
-                    }
-                });
-                
-                // Перезагрузка при восстановлении сети
-                window.addEventListener('online', () => {
-                    console.log('📡 Сеть восстановлена — перезагрузка');
-                    setTimeout(() => location.reload(), 500);
-                });
-            """)
-        
-        # ✅ АВТОВХОД: проверяем токен
+        # ✅ АВТОВХОД: проверяем токен (ДО загрузки DataManager)
         auth_token = page.client_storage.get("auth_token")
         user_id = page.client_storage.get("user_id")
         user_role = page.client_storage.get("user_role")
         
+        # Если есть токен — сразу загружаем DataManager и перенаправляем
         if auth_token and user_id and user_role:
             log(f"Автовход: {user_role} {user_id}")
             dm = DataManager()
             
-            # Перенаправляем на нужный профиль
             if user_role == "master":
                 for m in dm.users.get("masters", []):
                     if str(m.get("id")) == user_id:
@@ -105,7 +66,52 @@ def main(page: ft.Page):
             page.client_storage.delete("user_id")
             page.client_storage.delete("user_role")
         
-        # Нет токена — показываем вход
+        # ✅ JS-ФИКСЫ ЧЕРЕЗ ft.Html (единственный способ в 0.24.0)
+        if page.web:
+            page.client_storage.set("viewport_meta", 
+                "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no")
+            
+            # Добавляем скрипты через ft.Html
+            page.add(
+                # Service Worker
+                ft.Html('''<script>
+                if("serviceWorker" in navigator) {
+                    navigator.serviceWorker.register("http://45.146.165.37:8080/static/sw.js")
+                    .then(r=>console.log("SW OK:",r))
+                    .catch(e=>console.log("SW ERR:",e));
+                }
+                </script>'''),
+                
+                # Авто-перезагрузка если загрузка > 10 сек
+                ft.Html('''<script>
+                window.addEventListener('load', function() {
+                    setTimeout(function() {
+                        var el = document.querySelector('.flet-app-loading, [class*="loading"]');
+                        if(el) { console.log("⚠️ Reload >10s"); location.reload(); }
+                    }, 10000);
+                });
+                </script>'''),
+                
+                # Перезагрузка при возврате в приложение
+                ft.Html('''<script>
+                document.addEventListener('visibilitychange', function() {
+                    if(document.visibilityState === 'visible') {
+                        console.log("✅ Visible — reload");
+                        setTimeout(function(){ location.reload(); }, 500);
+                    }
+                });
+                </script>'''),
+                
+                # Перезагрузка при восстановлении сети
+                ft.Html('''<script>
+                window.addEventListener('online', function() {
+                    console.log("📡 Online — reload");
+                    setTimeout(function(){ location.reload(); }, 500);
+                });
+                </script>''')
+            )
+        
+        # Нет токена — обычная загрузка
         log("Создание DataManager...")
         dm = DataManager()
         
