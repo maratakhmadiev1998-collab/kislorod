@@ -1,4 +1,5 @@
-const CACHE_NAME = 'flet-kislorod-v1';
+// static/sw.js - v2 (обновлённый)
+const CACHE_NAME = 'flet-kislorod-v2';  // ✅ Увеличил версию
 const ASSETS = [
   '/',
   '/static/manifest.json',
@@ -11,6 +12,7 @@ self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
+  self.skipWaiting();  // ✅ Активируем сразу
 });
 
 self.addEventListener('activate', (e) => {
@@ -21,6 +23,7 @@ self.addEventListener('activate', (e) => {
       )
     )
   );
+  self.clients.claim();  // ✅ Берём контроль сразу
 });
 
 self.addEventListener('fetch', (e) => {
